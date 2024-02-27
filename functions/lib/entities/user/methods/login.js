@@ -10,7 +10,7 @@ const login = async (request, response) => {
 
     const validation = validations.haveParamsInBody(['username', 'password'], request.body);
 
-    if(!validation.status){
+    if (!validation.status) {
 
         response.json({
             error: validation.message,
@@ -19,7 +19,7 @@ const login = async (request, response) => {
         return;
     }
 
-    try{
+    try {
 
         const username = request.body.username;
         const password = request.body.password;
@@ -36,55 +36,57 @@ const login = async (request, response) => {
             }
         };
 
+
         httpsRequest(options)
-        .then(
-            async (res) => {
-                if(res.errorcode === "invalidlogin"){
-                    response.status(400).send({
-                        error: 'USERNAME_OR_PASSWORD_WRONG',
-                    });
-                }
+            .then(
+                async (res) => {
 
-                if(res.token !== null){
-                    const document = await user.doc(username).get();
-
-                    if(document.exists){
-
-                        //GERAR NOSSO CUSTOM TOKEN
-
-                        response.send({
-                            token: res.token,
-                            user: document.data(),
-                        });
-                    }else{
-                        response.status(401).send({
-                            error: 'FIRST_ACCESS',
-                            moodleToken: res.token,
+                    if (res.errorcode === "invalidlogin") {
+                        response.status(400).send({
+                            error: 'USERNAME_OR_PASSWORD_WRONG',
                         });
                     }
 
-                    return;
-                }
-            }
-        ).catch(
-            (err) => {
-                //DEU RUIM
+                    if (res.token !== null) {
+                        const document = await user.doc(username).get();
 
-                response.status(400).send({
-                    error: 'ERROR_TO_LOGIN',
-                });
-            }
-        );
+                        if (document.exists) {
+
+                            //GERAR NOSSO CUSTOM TOKEN
+
+                            response.send({
+                                token: res.token,
+                                user: document.data(),
+                            });
+                        } else {
+                            response.status(401).send({
+                                error: 'FIRST_ACCESS',
+                                moodleToken: res.token,
+                            });
+                        }
+
+                        return;
+                    }
+                }
+            ).catch(
+                (err) => {
+                    //DEU RUIM
+
+                    response.status(400).send({
+                        error: 'ERROR_TO_LOGIN',
+                    });
+                }
+            );
 
         return;
 
-    }catch(error){
+    } catch (error) {
         response.status(500).send({
             error: 'ERROR_TO_LOGIN',
         });
     }
 
-    
+
 
 };
 
