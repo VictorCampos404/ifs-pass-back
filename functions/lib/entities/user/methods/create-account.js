@@ -1,11 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createAccount = void 0;
-//const { Timestamp } = require("firebase/firestore");
 const firebaseAdmin = require("firebase-admin");
+const responseCode_1 = require("../../../tools/responseCode");
 const { validations } = require("../../../tools/validations");
+const { Timestamp } = require('firebase-admin/firestore');
 const httpsRequest = require("request-promise");
-const user = firebaseAdmin.firestore().collection("user");
+const user = firebaseAdmin.firestore().collection("users");
 
 
 
@@ -29,7 +30,7 @@ const createAccount = async (request, response) => {
 
         const document = await user.doc(username).get();
         if (document.exists) {
-            response.status(400).send({
+            response.status(responseCode_1.ResponseCode.BadRequest).send({
                 error: "USER_ALREADY_EXISTS"
             });
             return;
@@ -38,15 +39,12 @@ const createAccount = async (request, response) => {
 
         if (!permissionToSaveData) {
 
-            response.status(400).send({
+            response.status(responseCode_1.ResponseCode.BadRequest).send({
                 error: "PERMISSION_DENIED_TO_SAVE_DATA"
             })
             return;
 
         }
-
-
-
 
         const options = {
             url: url,
@@ -56,70 +54,63 @@ const createAccount = async (request, response) => {
 
         };
 
-
-
-
         httpsRequest(options)
             .then(async res => {
                 if (res.errorcode === "invalidtoken") {
-                    response.status(400).send({
+                    response.status(responseCode_1.ResponseCode.BadRequest).send({
                         error: 'INVALID_MOODLE_TOKEN',
                     });
                     return;
                 }
                 if (Object.keys(res).length === 0) {
-                    response.status(400).send({
+                    response.status(responseCode_1.ResponseCode.BadRequest).send({
                         error: 'INVALID_USERNAME',
                     });
                     return;
                 }
 
                 if (res.id !== null) {
+                    const createdAt = Timestamp.now();
+
                     const account = {
 
-                        username: res[0].username,
-                        fullname: res[0].fullname,
-                        email: res[0].email,
-                        city: res[0].city,
-                        country: res[0].country,
-                        moodlephoto: res[0].profileimageurl,
-                        customphoto: null,
+                        username: res[0]?.username ?? null,
+                        fullname: res[0]?.fullname ?? null,
+                        email: res[0]?.email ?? null,
+                        city: res[0]?.city ?? null,
+                        country: res[0]?.country ?? null,
+                        moodlePhoto: res[0]?.profileimageurl ?? null,
+                        customPhoto: null,
                         active: true,
-                        //createdAt: Timestamp.fromDate(new Date()),
+                        createdAt: createdAt,
 
                     }
+
                     await user.doc(username).create(account);
-                    response.status(200).send({
+                    response.send({
                         status: 'ACCOUNT_CREATED',
                     });
                     return;
 
                 }
-
-
-
-            }
-
-
-            )
-
+            }).catch(
+                (err) => {
+                    response.status(responseCode_1.ResponseCode.BadRequest).send({
+                        error: 'ERROR_TO_CREATE_ACCOUNT',
+                    });
+                    return;
+                }
+            );
 
 
     }
     catch (error) {
-        response.status(500).send({
+        response.status(responseCode_1.ResponseCode.InternalServerError).send({
             error: 'ERROR_TO_CREATE_ACCOUNT',
             test: error
         });
         return;
-
-
     }
-
-
-
-
-
 };
 
 exports.createAccount = createAccount;

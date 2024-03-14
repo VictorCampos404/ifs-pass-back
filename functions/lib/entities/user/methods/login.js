@@ -2,9 +2,12 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.login = void 0;
 const firebaseAdmin = require("firebase-admin");
+const responseCode_1 = require("../../../tools/responseCode");
 const { validations } = require("../../../tools/validations");
 const httpsRequest = require("request-promise");
-const user = firebaseAdmin.firestore().collection("user");
+const { tokenManager } = require("../../../tools/token_manager");
+const { jwtDecode } = require("jwt-decode");
+const user = firebaseAdmin.firestore().collection("users");
 
 const login = async (request, response) => {
 
@@ -36,15 +39,15 @@ const login = async (request, response) => {
             }
         };
 
-
         httpsRequest(options)
             .then(
                 async (res) => {
 
                     if (res.errorcode === "invalidlogin") {
-                        response.status(400).send({
+                        response.status(responseCode_1.ResponseCode.BadRequest).send({
                             error: 'USERNAME_OR_PASSWORD_WRONG',
                         });
+                        return;
                     }
 
                     if (res.token !== null) {
@@ -52,14 +55,25 @@ const login = async (request, response) => {
 
                         if (document.exists) {
 
-                            //GERAR NOSSO CUSTOM TOKEN
+                            const userData = document.data();
+                            const token = await tokenManager.createToken(userData, res.token);
 
                             response.send({
-                                token: res.token,
-                                user: document.data(),
+                                token: token,
+                                user: {
+                                    username: userData?.username,
+                                    fullname: userData?.fullname,
+                                    email: userData?.email,
+                                    city: userData?.city,
+                                    country: userData?.country,
+                                    moodlePhoto: userData?.moodlePhoto,
+                                    customPhoto: userData?.customPhoto,
+                                    active: userData?.active,
+                                    createdAt: userData?.createdAt.toDate(),
+                                },
                             });
                         } else {
-                            response.status(401).send({
+                            response.status(responseCode_1.ResponseCode.Unauthorized).send({
                                 error: 'FIRST_ACCESS',
                                 moodleToken: res.token,
                             });
@@ -70,20 +84,19 @@ const login = async (request, response) => {
                 }
             ).catch(
                 (err) => {
-                    //DEU RUIM
-
-                    response.status(400).send({
+                    response.status(responseCode_1.ResponseCode.BadRequest).send({
                         error: 'ERROR_TO_LOGIN',
                     });
+                    return;
                 }
             );
 
-        return;
 
     } catch (error) {
-        response.status(500).send({
+        response.status(responseCode_1.ResponseCode.InternalServerError).send({
             error: 'ERROR_TO_LOGIN',
         });
+        return;
     }
 
 
